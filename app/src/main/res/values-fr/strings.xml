@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Pokemon</string>
+    <string name="weight">Poids</string>
+    <string name="height">Hauteur</string>
+    <string name="base_stats">Stats de base</string>
+    <string name="attack">Attaque</string>
+    <string name="defense">Défense</string>
+    <string name="speed">Vitesse</string>
+    <string name="experience">Expérience</string>
+</resources>
