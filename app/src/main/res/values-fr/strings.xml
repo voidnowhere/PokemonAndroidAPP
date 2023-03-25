@@ -8,4 +8,7 @@
     <string name="defense">Défense</string>
     <string name="speed">Vitesse</string>
     <string name="experience">Expérience</string>
+    <string name="previous">Précédent</string>
+    <string name="next">Suivant</string>
+    <string name="nothing_to_show">Rien à montrer</string>
 </resources>
