@@ -2,6 +2,7 @@ package com.example.pokemonandroidapp;
 
 import android.os.Bundle;
 import android.widget.GridView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -11,6 +12,7 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Objects;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -18,31 +20,51 @@ import okhttp3.Response;
 
 public class MainActivity extends AppCompatActivity {
     private GridViewPokemonsAdapter pokemonsAdapter;
+    private String previousUrl;
+    private String nextUrl;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         //
+        findViewById(R.id.buttonPrevious).setOnClickListener(view -> {
+            if (Objects.equals(previousUrl, "null")) {
+                Toast.makeText(this, getResources().getString(R.string.nothing_to_show), Toast.LENGTH_SHORT).show();
+                return;
+            }
+            fillPokemonsAdapterFromAPI(previousUrl);
+        });
+        findViewById(R.id.buttonNext).setOnClickListener(view -> {
+            if (Objects.equals(nextUrl, "null")) {
+                Toast.makeText(this, getResources().getString(R.string.nothing_to_show), Toast.LENGTH_SHORT).show();
+                return;
+            }
+            fillPokemonsAdapterFromAPI(nextUrl);
+        });
         GridView gridView = findViewById(R.id.gridViewPokemons);
         pokemonsAdapter = new GridViewPokemonsAdapter(this, new ArrayList<>());
         gridView.setAdapter(pokemonsAdapter);
-        fillPokemonsAdapterFromAPI();
+        nextUrl = "https://pokeapi.co/api/v2/pokemon/?offset=0&limit=10";
+        fillPokemonsAdapterFromAPI(nextUrl);
     }
 
-    private void fillPokemonsAdapterFromAPI() {
+    private void fillPokemonsAdapterFromAPI(String sourcedUrl) {
         new Thread(() -> {
             OkHttpClient httpClient = new OkHttpClient();
             Request request = new Request.Builder()
-                    .url("https://pokeapi.co/api/v2/pokemon/?limit=25")
+                    .url(sourcedUrl)
                     .build();
             try {
                 Response response = httpClient.newCall(request).execute();
                 String responseData = response.body().string();
 
-                JSONObject jsonResponse = new JSONObject(responseData);
-                JSONArray pokemonJSONArray = jsonResponse.getJSONArray("results");
 
+                JSONObject jsonResponse = new JSONObject(responseData);
+                previousUrl = jsonResponse.getString("previous");
+                nextUrl = jsonResponse.getString("next");
+                JSONArray pokemonJSONArray = jsonResponse.getJSONArray("results");
+                pokemonsAdapter.getPokemons().clear();
                 for (int i = 0; i < pokemonJSONArray.length(); i++) {
                     JSONObject pokemonObject = pokemonJSONArray.getJSONObject(i);
                     String name = pokemonObject.getString("name");
