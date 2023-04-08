@@ -6,27 +6,29 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
+
 import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Objects;
-
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
 
 public class MainActivity extends AppCompatActivity {
     private GridViewPokemonsAdapter pokemonsAdapter;
     private String previousUrl;
     private String nextUrl;
+    private RequestQueue requestQueue;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        //
+        requestQueue = Volley.newRequestQueue(this);
         //
         findViewById(R.id.buttonPrevious).setOnClickListener(view -> {
             if (Objects.equals(previousUrl, "null")) {
@@ -50,70 +52,62 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void fillPokemonsAdapterFromAPI(String sourcedUrl) {
-        new Thread(() -> {
-            OkHttpClient httpClient = new OkHttpClient();
-            Request request = new Request.Builder()
-                    .url(sourcedUrl)
-                    .build();
+        requestQueue.add(new StringRequest(Request.Method.GET, sourcedUrl, responsePokemons -> {
             try {
-                Response response = httpClient.newCall(request).execute();
-                String responseData = response.body().string();
-
-
-                JSONObject jsonResponse = new JSONObject(responseData);
-                previousUrl = jsonResponse.getString("previous");
-                nextUrl = jsonResponse.getString("next");
-                JSONArray pokemonJSONArray = jsonResponse.getJSONArray("results");
+                JSONObject jsonResponsePokemons = new JSONObject(responsePokemons);
+                previousUrl = jsonResponsePokemons.getString("previous");
+                nextUrl = jsonResponsePokemons.getString("next");
+                JSONArray pokemonJSONArray = jsonResponsePokemons.getJSONArray("results");
                 pokemonsAdapter.getPokemons().clear();
                 for (int i = 0; i < pokemonJSONArray.length(); i++) {
                     JSONObject pokemonObject = pokemonJSONArray.getJSONObject(i);
                     String name = pokemonObject.getString("name");
                     String url = pokemonObject.getString("url");
 
-                    request = new Request.Builder().url(url).build();
-                    response = httpClient.newCall(request).execute();
-                    responseData = response.body().string();
+                    requestQueue.add(new StringRequest(Request.Method.GET, url, responsePokemon -> {
+                        try {
+                            JSONObject jsonResponsePokemon = new JSONObject(responsePokemon);
+                            String imageUrl = jsonResponsePokemon
+                                    .getJSONObject("sprites")
+                                    .getJSONObject("other")
+                                    .getJSONObject("official-artwork")
+                                    .getString("front_default");
 
-                    jsonResponse = new JSONObject(responseData);
-                    String imageUrl = jsonResponse
-                            .getJSONObject("sprites")
-                            .getJSONObject("other")
-                            .getJSONObject("official-artwork")
-                            .getString("front_default");
-
-                    float weight = Float.parseFloat(jsonResponse.getString("weight"));
-                    float height = Float.parseFloat(jsonResponse.getString("height"));
-                    int experience = Integer.parseInt(jsonResponse.getString("base_experience"));
-                    JSONArray statsJSONArray = jsonResponse.getJSONArray("stats");
-                    int hp = 0;
-                    int attack = 0;
-                    int defense = 0;
-                    int speed = 0;
-                    for (int j = 0; j < statsJSONArray.length(); j++) {
-                        JSONObject statObject = statsJSONArray.getJSONObject(j);
-                        switch (statObject.getJSONObject("stat").getString("name")) {
-                            case "hp":
-                                hp = Integer.parseInt(statObject.getString("base_stat"));
-                                break;
-                            case "attack":
-                                attack = Integer.parseInt(statObject.getString("base_stat"));
-                                break;
-                            case "defense":
-                                defense = Integer.parseInt(statObject.getString("base_stat"));
-                                break;
-                            case "speed":
-                                speed = Integer.parseInt(statObject.getString("base_stat"));
-                                break;
+                            float weight = Float.parseFloat(jsonResponsePokemon.getString("weight"));
+                            float height = Float.parseFloat(jsonResponsePokemon.getString("height"));
+                            int experience = Integer.parseInt(jsonResponsePokemon.getString("base_experience"));
+                            JSONArray statsJSONArray = jsonResponsePokemon.getJSONArray("stats");
+                            int hp = 0;
+                            int attack = 0;
+                            int defense = 0;
+                            int speed = 0;
+                            for (int j = 0; j < statsJSONArray.length(); j++) {
+                                JSONObject statObject = statsJSONArray.getJSONObject(j);
+                                switch (statObject.getJSONObject("stat").getString("name")) {
+                                    case "hp":
+                                        hp = Integer.parseInt(statObject.getString("base_stat"));
+                                        break;
+                                    case "attack":
+                                        attack = Integer.parseInt(statObject.getString("base_stat"));
+                                        break;
+                                    case "defense":
+                                        defense = Integer.parseInt(statObject.getString("base_stat"));
+                                        break;
+                                    case "speed":
+                                        speed = Integer.parseInt(statObject.getString("base_stat"));
+                                        break;
+                                }
+                            }
+                            pokemonsAdapter.getPokemons().add(new Pokemon(name, imageUrl, weight, height, hp, attack, defense, speed, experience));
+                            pokemonsAdapter.notifyDataSetChanged();
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
-                    }
-                    pokemonsAdapter.getPokemons().add(new Pokemon(name, imageUrl, weight, height, hp, attack, defense, speed, experience));
-                    runOnUiThread(() -> {
-                        pokemonsAdapter.notifyDataSetChanged();
-                    });
+                    }, error -> Toast.makeText(this, "Network error", Toast.LENGTH_SHORT).show()));
                 }
-            } catch (JSONException | IOException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
-        }).start();
+        }, error -> Toast.makeText(this, "Network error", Toast.LENGTH_SHORT).show()));
     }
 }
